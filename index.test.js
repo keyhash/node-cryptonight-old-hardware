@@ -51,10 +51,23 @@ test('async hash of empty string with variant 1', () => {
     .toThrow(/43/)
 })
 
+test('async hash of empty string with variant 2', () => {
+  expect(() => cryptonight.asyncHash(Buffer.from(''), 2, data => {}))
+    .toThrow(/43/)
+})
+
 test('async hash of test string', done => {
   return cryptonight.asyncHash(Buffer.from('This is a test'), data => {
     expect(data.toString('hex'))
       .toBe('a084f01d1437a09c6985401b60d43554ae105802c5f5d8a9b3253649c0be6605')
+    done()
+  })
+})
+
+test('async hash of test string with variant 2', done => {
+  return cryptonight.asyncHash(Buffer.from('4c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e73656374657475722061646970697363696e67', 'hex'), 2, data => {
+    expect(data.toString('hex'))
+      .toBe('72f134fc50880c330fe65a2cb7896d59b2e708a0221c6a9da3f69b3a702d8682')
     done()
   })
 })
@@ -110,9 +123,19 @@ test('sync hash of empty string with variant 1', () => {
     .toThrow(/43/)
 })
 
+test('sync hash of empty string with variant 2', () => {
+  expect(() => cryptonight.hash(Buffer.from(''), 1))
+    .toThrow(/43/)
+})
+
 test('sync hash of test string with variant 1', () => {
   expect(cryptonight.hash(Buffer.from('This is a test which as at least 43 bytes ...'), 1).toString('hex'))
     .toBe('bf1b87e049bfe1c668c44f2dc1bb689abcc729a704fc8088917cfbca202fc3cb')
+})
+
+test('sync hash of test string with variant 2', () => {
+  expect(cryptonight.hash(Buffer.from('697275726520646f6c6f7220696e20726570726568656e646572697420696e20766f6c7570746174652076656c6974', 'hex'), 2).toString('hex'))
+    .toBe('422f8cfe8060cf6c3d9fd66f68e3c9977adb683aea2788029308bbe9bc50d728')
 })
 
 test('sync invalid argument throws exception', () => {

@@ -5,6 +5,8 @@ Cryptonight hashing functions for node.js.
 
 Recommended for usage on old hardware, prefer using [node-cryptonight](https://github.com/ExcitableAardvark/node-cryptonight) on modern hardware and production.
 
+Supports cryptonight variant: 0, 1 and 2
+
 ### Installation
 
 `npm install --save node-cryptonight-old-hardware`
