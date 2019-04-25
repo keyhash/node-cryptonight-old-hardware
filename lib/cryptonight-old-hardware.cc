@@ -36,8 +36,11 @@
     #define XMRIG_ARM 1
     #include "vendor/crypto/CryptoNight_arm.h"
 #else
+    #include "vendor/extra.h"
     #include "vendor/crypto/CryptoNight_x86.h"
 #endif
+
+#include "vendor/Mem.h"
 
 #define SOFT_AES true
 
@@ -45,8 +48,7 @@ static struct cryptonight_ctx* ctx = NULL;
 
 void init_ctx() {
     if (ctx) return;
-    ctx = static_cast<cryptonight_ctx *>(_mm_malloc(sizeof(cryptonight_ctx), 16));
-    ctx->memory = static_cast<uint8_t *>(_mm_malloc(xmrig::CRYPTONIGHT_HEAVY_MEMORY, 4096));
+    Mem::create(&ctx, xmrig::CRYPTONIGHT_HEAVY, 1);
 }
 
 #define THROW_ERROR_EXCEPTION(x) Nan::ThrowError(x)
@@ -62,13 +64,23 @@ using namespace Nan;
 NAN_METHOD(hash) {
         Local<Object> buf;
         uint32_t variant = 0;
+        uint32_t height = 0;
 
-    	switch (info.Length()) {
-		case 2:
-			if (info[1]->IsUint32())
-				variant = info[1]->Int32Value();
+    switch (info.Length()) {
+        case 3:
+			if (info[2]->IsUint32())
+				height = info[2]->Int32Value();
 			else
+				return Nan::ThrowError("Third argument must be a number");	
+		case 2:
+            if (info[1]->IsUint32()) {
+				variant = info[1]->Int32Value();
+				if (variant >= 4 && info.Length() == 2) {
+					return Nan::ThrowError("When variant is 4 or higher, height is required.");
+				}
+			} else {
 				return Nan::ThrowError("Second argument must be a number");
+			}
 		case 1:
 			buf = info[0]->ToObject();
 			if (!Buffer::HasInstance(buf))
@@ -85,13 +97,15 @@ NAN_METHOD(hash) {
     char output[32];
     init_ctx();
     switch (variant) {
-       case 0:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_0>  (reinterpret_cast<const uint8_t*>(Buffer::Data(buf)), Buffer::Length(buf), reinterpret_cast<uint8_t*>(output), &ctx);
+       case 0:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_0>  (reinterpret_cast<const uint8_t*>(Buffer::Data(buf)), Buffer::Length(buf), reinterpret_cast<uint8_t*>(output), &ctx, height);
                 break;
-       case 1:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_1>  (reinterpret_cast<const uint8_t*>(Buffer::Data(buf)), Buffer::Length(buf), reinterpret_cast<uint8_t*>(output), &ctx);
+       case 1:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_1>  (reinterpret_cast<const uint8_t*>(Buffer::Data(buf)), Buffer::Length(buf), reinterpret_cast<uint8_t*>(output), &ctx, height);
                 break;
-       case 2:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_2>  (reinterpret_cast<const uint8_t*>(Buffer::Data(buf)), Buffer::Length(buf), reinterpret_cast<uint8_t*>(output), &ctx);
+       case 2:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_2>  (reinterpret_cast<const uint8_t*>(Buffer::Data(buf)), Buffer::Length(buf), reinterpret_cast<uint8_t*>(output), &ctx, height);
                 break;
-       default: cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_2>  (reinterpret_cast<const uint8_t*>(Buffer::Data(buf)), Buffer::Length(buf), reinterpret_cast<uint8_t*>(output), &ctx);
+       case 4:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_4>  (reinterpret_cast<const uint8_t*>(Buffer::Data(buf)), Buffer::Length(buf), reinterpret_cast<uint8_t*>(output), &ctx, height);
+                break;
+       default: cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_2>  (reinterpret_cast<const uint8_t*>(Buffer::Data(buf)), Buffer::Length(buf), reinterpret_cast<uint8_t*>(output), &ctx, height);
     }
 
     info.GetReturnValue().Set(CopyBuffer(output, 32).ToLocalChecked());
@@ -105,30 +119,33 @@ class CCryptonightAsync : public Nan::AsyncWorker {
         const char* const m_input;
         const uint32_t m_input_len;
         const int m_variant;
+        const int m_height;
         char m_output[32];
+        MemInfo m_info;
 
     public:
 
-        CCryptonightAsync(Nan::Callback* const callback, const char* const input, const uint32_t input_len, const int variant)
+        CCryptonightAsync(Nan::Callback* const callback, const char* const input, const uint32_t input_len, const int variant, const int height)
             : Nan::AsyncWorker(callback), m_ctx(static_cast<cryptonight_ctx *>(_mm_malloc(sizeof(cryptonight_ctx), 16))),
-              m_input(input), m_input_len(input_len), m_variant(variant) {
-            m_ctx->memory = static_cast<uint8_t *>(_mm_malloc(xmrig::CRYPTONIGHT_MEMORY, 4096));
+              m_input(input), m_input_len(input_len), m_variant(variant), m_height(height) {
+            m_info = Mem::create(&m_ctx, xmrig::CRYPTONIGHT, 1);
         }
 
         ~CCryptonightAsync() {
-            _mm_free(m_ctx->memory);
-            _mm_free(m_ctx);
+            Mem::release(&m_ctx, 1, m_info);
         }
 
         void Execute () {
             switch (m_variant) {
-                case 0:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_0>  (reinterpret_cast<const uint8_t*>(m_input), m_input_len, reinterpret_cast<uint8_t*>(m_output), &m_ctx);
-                         break;
-                case 1:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_1>  (reinterpret_cast<const uint8_t*>(m_input), m_input_len, reinterpret_cast<uint8_t*>(m_output), &m_ctx);
-                         break;
-                case 2:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_2>  (reinterpret_cast<const uint8_t*>(m_input), m_input_len, reinterpret_cast<uint8_t*>(m_output), &m_ctx);
+                case 0:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_0>  (reinterpret_cast<const uint8_t*>(m_input), m_input_len, reinterpret_cast<uint8_t*>(m_output), &m_ctx, m_height);
                     break;
-                default: cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_2>  (reinterpret_cast<const uint8_t*>(m_input), m_input_len, reinterpret_cast<uint8_t*>(m_output), &m_ctx);
+                case 1:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_1>  (reinterpret_cast<const uint8_t*>(m_input), m_input_len, reinterpret_cast<uint8_t*>(m_output), &m_ctx, m_height);
+                    break;
+                case 2:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_2>  (reinterpret_cast<const uint8_t*>(m_input), m_input_len, reinterpret_cast<uint8_t*>(m_output), &m_ctx, m_height);
+                    break;
+                case 4:  cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_4>  (reinterpret_cast<const uint8_t*>(m_input), m_input_len, reinterpret_cast<uint8_t*>(m_output), &m_ctx, m_height);
+                    break;
+                default: cryptonight_single_hash<xmrig::CRYPTONIGHT, SOFT_AES, xmrig::VARIANT_2>  (reinterpret_cast<const uint8_t*>(m_input), m_input_len, reinterpret_cast<uint8_t*>(m_output), &m_ctx, m_height);
             }
         }
 
@@ -144,13 +161,29 @@ class CCryptonightAsync : public Nan::AsyncWorker {
 NAN_METHOD(asyncHash) {
     Local<Object> buf;
 	uint32_t variant = 0;
+    uint32_t height = 0;
 	Callback *callback;
 
 	switch (info.Length()) {
+        case 4:
+			if (info[3]->IsFunction())
+				callback = new Callback(To<Function>(info[3]).ToLocalChecked());
+			else
+				return Nan::ThrowError("Fourth argument must be a callback");
 		case 3:
-			callback = new Callback(To<Function>(info[2]).ToLocalChecked());
+			if (info.Length() >= 4) {
+				if (info[2]->IsUint32())
+					height = info[2]->Int32Value();
+				else
+					return Nan::ThrowError("Third argument must be a number");
+			} else {
+				if (info[2]->IsFunction())
+					callback = new Callback(To<Function>(info[2]).ToLocalChecked());
+				else
+					return Nan::ThrowError("Third argument must be a callback");
+			}
 		case 2:
-			if (info.Length() == 3) {
+			if (info.Length() >= 3) {
 				if (info[1]->IsUint32())
 					variant = info[1]->Int32Value();
 				else 
@@ -171,7 +204,7 @@ NAN_METHOD(asyncHash) {
 			return Nan::ThrowError("Invalid number of arguments.");
 	}
 
-    Nan::AsyncQueueWorker(new CCryptonightAsync(callback, Buffer::Data(buf), Buffer::Length(buf), variant));
+    Nan::AsyncQueueWorker(new CCryptonightAsync(callback, Buffer::Data(buf), Buffer::Length(buf), variant, height));
 }
 
 NAN_MODULE_INIT(init) {

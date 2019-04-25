@@ -51,11 +51,6 @@ test('async hash of empty string with variant 1', () => {
     .toThrow(/43/)
 })
 
-test('async hash of empty string with variant 2', () => {
-  expect(() => cryptonight.asyncHash(Buffer.from(''), 2, data => {}))
-    .toThrow(/43/)
-})
-
 test('async hash of test string', done => {
   return cryptonight.asyncHash(Buffer.from('This is a test'), data => {
     expect(data.toString('hex'))
@@ -64,18 +59,26 @@ test('async hash of test string', done => {
   })
 })
 
-test('async hash of test string with variant 2', done => {
-  return cryptonight.asyncHash(Buffer.from('4c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e73656374657475722061646970697363696e67', 'hex'), 2, data => {
-    expect(data.toString('hex'))
-      .toBe('72f134fc50880c330fe65a2cb7896d59b2e708a0221c6a9da3f69b3a702d8682')
-    done()
-  })
-})
-
 test('async hash of test string with variant 1', done => {
   return cryptonight.asyncHash(Buffer.from('This is a test which as at least 43 bytes ...'), 1, data => {
     expect(data.toString('hex'))
       .toBe('bf1b87e049bfe1c668c44f2dc1bb689abcc729a704fc8088917cfbca202fc3cb')
+    done()
+  })
+})
+
+test('async hash of test string with variant 2', done => {
+  return cryptonight.asyncHash(Buffer.from('This is a test This is a test This is a test'), 2, data => {
+    expect(data.toString('hex'))
+      .toBe('353fdc068fd47b03c04b9431e005e00b68c2168a3cc7335c8b9b308156591a4f')
+    done()
+  })
+})
+
+test('sync hash of test string with variant 4 (monero test vector)', done => {
+  return cryptonight.asyncHash(Buffer.from('73756e7420696e2063756c706120717569206f666669636961206465736572756e74206d6f6c6c697420616e696d20696420657374206c61626f72756d2e', 'hex'), 4, 1806269, data => {
+    expect(data.toString('hex'))
+      .toBe('75c6f2ae49a20521de97285b431e717125847fb8935ed84a61e7f8d36a2c3d8e')
     done()
   })
 })
@@ -103,8 +106,13 @@ test('invalid arguments throws exception', () => {
     .toThrow(/number/)
 })
 
+test('invalid argument order throws exception', () => {
+  expect(() => cryptonight.asyncHash(Buffer.from(''), 0, 0, 0))
+    .toThrow(/Fourth argument must be a callback/)
+})
+
 test('extra arguments throws exception', () => {
-  expect(() => cryptonight.asyncHash(Buffer.from(''), 0, () => {}, { invalid: true }))
+  expect(() => cryptonight.asyncHash(Buffer.from(''), 0, 0, () => {}, 1))
     .toThrow(/Invalid/)
 })
 
@@ -123,19 +131,24 @@ test('sync hash of empty string with variant 1', () => {
     .toThrow(/43/)
 })
 
-test('sync hash of empty string with variant 2', () => {
-  expect(() => cryptonight.hash(Buffer.from(''), 1))
-    .toThrow(/43/)
-})
-
 test('sync hash of test string with variant 1', () => {
   expect(cryptonight.hash(Buffer.from('This is a test which as at least 43 bytes ...'), 1).toString('hex'))
     .toBe('bf1b87e049bfe1c668c44f2dc1bb689abcc729a704fc8088917cfbca202fc3cb')
 })
 
 test('sync hash of test string with variant 2', () => {
-  expect(cryptonight.hash(Buffer.from('697275726520646f6c6f7220696e20726570726568656e646572697420696e20766f6c7570746174652076656c6974', 'hex'), 2).toString('hex'))
-    .toBe('422f8cfe8060cf6c3d9fd66f68e3c9977adb683aea2788029308bbe9bc50d728')
+  expect(cryptonight.hash(Buffer.from('This is a test This is a test This is a test'), 2).toString('hex'))
+    .toBe('353fdc068fd47b03c04b9431e005e00b68c2168a3cc7335c8b9b308156591a4f')
+})
+
+test('sync hash of test string with variant 2 (monero test vector)', () => {
+  expect(cryptonight.hash(Buffer.from('73756e7420696e2063756c706120717569206f666669636961206465736572756e74206d6f6c6c697420616e696d20696420657374206c61626f72756d2e', 'hex'), 2).toString('hex'))
+    .toBe('2659ff95fc74b6215c1dc741e85b7a9710101b30620212f80eb59c3c55993f9d')
+})
+
+test('sync hash of test string with variant 4 (monero test vector)', () => {
+  expect(cryptonight.hash(Buffer.from('73756e7420696e2063756c706120717569206f666669636961206465736572756e74206d6f6c6c697420616e696d20696420657374206c61626f72756d2e', 'hex'), 4, 1806269).toString('hex'))
+    .toBe('75c6f2ae49a20521de97285b431e717125847fb8935ed84a61e7f8d36a2c3d8e')
 })
 
 test('sync invalid argument throws exception', () => {
@@ -155,5 +168,5 @@ test('sync extra arguments throws exception', () => {
 
 test('sync extra arguments throws exception', () => {
   expect(() => cryptonight.hash(Buffer.from(''), 0, { invalid: true }))
-    .toThrow(/Invalid/)
+    .toThrow(/Third argument must be a number/)
 })
