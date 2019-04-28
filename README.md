@@ -5,7 +5,7 @@ Cryptonight hashing functions for node.js.
 
 Recommended for usage on old hardware, prefer using [node-cryptonight](https://github.com/ExcitableAardvark/node-cryptonight) on modern hardware and production.
 
-Supports cryptonight variant: 0, 1 and 2
+Supports cryptonight variant: 0, 1, 2 and 4.
 
 ### Installation
 
@@ -20,7 +20,7 @@ Code is linted with [standard](https://github.com/standard/standard) and tested 
 ##### Synchronous Hashing
 
 ```js
-const cryptonight = require('node-cryptonight').hash
+const cryptonight = require('node-cryptonight-old-hardware').hash
 const hash = cryptonight(Buffer.from('This is a test'))
 console.log(hash) // <Buffer a0 84 f0 1d 14 37 ..>
 ```
@@ -28,15 +28,23 @@ console.log(hash) // <Buffer a0 84 f0 1d 14 37 ..>
 ##### Synchronous Hashing with variant 1
 
 ```js
-const cryptonight = require('node-cryptonight').hash
+const cryptonight = require('node-cryptonight-old-hardware').hash
 const hash = cryptonight(Buffer.from('This is a test'), 1)
+console.log(hash) // <Buffer a0 84 f0 1d 14 37 ..>
+```
+
+##### Synchronous Hashing with variant 4 and height 123
+
+```js
+const cryptonight = require('node-cryptonight-old-hardware').hash
+const hash = cryptonight(Buffer.from('This is a test'), 4, 123)
 console.log(hash) // <Buffer a0 84 f0 1d 14 37 ..>
 ```
 
 ##### Asynchronous Hashing
 
 ```js
-const cryptonight = require('node-cryptonight').asyncHash
+const cryptonight = require('node-cryptonight-old-hardware').asyncHash
 cryptonight(Buffer.from('This is a test'), hash => {
   console.log(hash) // <Buffer a0 84 f0 1d 14 37 ..>
 })
@@ -44,8 +52,17 @@ cryptonight(Buffer.from('This is a test'), hash => {
 ##### Asynchronous Hashing with variant 1
 
 ```js
-const cryptonight = require('node-cryptonight').asyncHash
+const cryptonight = require('node-cryptonight-old-hardware').asyncHash
 cryptonight(Buffer.from('This is a test'), 1, hash => {
+  console.log(hash) // <Buffer a0 84 f0 1d 14 37 ..>
+})
+```
+
+##### Asynchronous Hashing with variant 4 and height 123
+
+```js
+const cryptonight = require('node-cryptonight-old-hardware').asyncHash
+cryptonight(Buffer.from('This is a test'), 4, 123, hash => {
   console.log(hash) // <Buffer a0 84 f0 1d 14 37 ..>
 })
 ```
